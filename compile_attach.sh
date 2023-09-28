@@ -1,4 +1,4 @@
-sudo clang -O2 -target bpf -c $1.c -o $1.o
+sudo clang -O2 -g -target bpf -c $1.c -o $1.o
 if test -f /sys/fs/bpf/$1; then
 echo "Already Exists"
 sudo rm /sys/fs/bpf/$1
