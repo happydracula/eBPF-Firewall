@@ -1,7 +1,7 @@
 #include "packet.h"
 #include <linux/ipv6.h>
 #include <linux/bpf.h>
-#include<linux/ip.h>
+#include <linux/ip.h>
 #include <bpf/bpf_endian.h>
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
@@ -14,7 +14,8 @@ int hello(struct xdp_md *ctx) {
  bpf_printk("Hello ping\n");
  }
  return XDP_PASS;*/
-unsigned int source=lookup_source(ctx);
+struct iphdr*iph=retrieve_ip(ctx);
+unsigned int source=lookup_source(iph);
 if(source==0x0101a8c0){
 	bpf_printk("Dropped packet from source:%pI4",&source);
 	return XDP_DROP;

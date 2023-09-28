@@ -51,81 +51,37 @@ static int w[40] = {
        5,   -8,    9,  35,   61,   75,   -5,   -5,  -69,  -77
 };
 static int b = -122;
-static inline int parse_eth(void *data, u64 nh_off, void *data_end) {
-     struct ethhdr *eth = data + nh_off;
-
-    if ((void*)&eth[1] > data_end)
-        return 0;
-    return eth->h_proto;
-}
-
-static inline int parse_ipv4(void *data, u64 nh_off, void *data_end) {
-    struct iphdr *iph = data + nh_off;
-
-    if ((void*)&iph[1] > data_end)
-        return 0;
-    return iph->protocol;
-}
-
-static inline int parse_ipv6(void *data, u64 nh_off, void *data_end) {
-    struct ipv6hdr *ip6h = data + nh_off;
-
-    if ((void*)&ip6h[1] > data_end)
-        return 0;
-    return ip6h->nexthdr;
-}
 // Returns the protocol byte for an IP packet, 0 for anything else
 // static __always_inline unsigned char lookup_protocol(struct xdp_md *ctx)
-unsigned char lookup_protocol(struct xdp_md *ctx)
-{
-    unsigned char protocol = 0;
-
-    void *data = (void *)(long)ctx->data;
+struct iphdr* retrieve_ip(struct xdp_md *ctx){
+ void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;
     struct ethhdr *eth = data;
     if (data + sizeof(struct ethhdr) > data_end)
-        return 0;
-
-    // Check that it's an IP packet
+        return NULL;
     if (bpf_ntohs(eth->h_proto) == ETH_P_IP)
     {
-        // Return the protocol of this packet
-        // 1 = ICMP
-        // 6 = TCP
-        // 17 = UDP        
-        struct iphdr *iph = data + sizeof(struct ethhdr);
-        if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
-            protocol = iph->protocol;
-	    bpf_printk("\nSource Addr %pI4 \n",&iph->saddr);
-	   bpf_printk("\nDestination Addr %pI4 \n",&iph->daddr);
-	}
-    }
-    return protocol;
-}
-unsigned int lookup_source(struct xdp_md *ctx)
-{
 
-
-    void *data = (void *)(long)ctx->data;
-    void *data_end = (void *)(long)ctx->data_end;
-    struct ethhdr *eth = data;
-    if (data + sizeof(struct ethhdr) > data_end)
-        return 0;
-
-    // Check that it's an IP packet
-    if (bpf_ntohs(eth->h_proto) == ETH_P_IP)
-    {
-        // Return the protocol of this packet
-        // 1 = ICMP
-        // 6 = TCP
-        // 17 = UDP
         struct iphdr *iph = data + sizeof(struct ethhdr);
         if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
 
     //        bpf_printk("\nSource Addr Parsed:%pI4 \n",&iph->saddr);
-	    return iph->saddr;
+            return iph;
         }
     }
+    return NULL;
+}
+unsigned char lookup_protocol(struct iphdr *iph)
+{
+	if(iph!=NULL){
+		return 0;
+	}
+	else return iph->protocol;
+}
+
+unsigned int lookup_source(struct iphdr* iph)
+{
+    if(iph!=NULL) return iph->saddr;
     return 0;
 }
 unsigned int detect_malicious(struct xdp_md *ctx)
@@ -153,10 +109,10 @@ unsigned int detect_malicious(struct xdp_md *ctx)
         y += (*byte) * w[i];
     }
 	    if(y>0){
-		    return 0;
+		    return 1;
 	    }
 	    else {
-		    return 1;
+		    return 0;
 	    }
         }
     }
