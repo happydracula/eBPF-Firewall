@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/if_link.h>
@@ -14,23 +15,28 @@ static int ifindex;
 struct xdp_program *prog = NULL;
 static void poll_stats(int map_fd, int interval)
 {
-    long value, prev=0, total_pkts;
-    int i, key = 0;
-
-    
-
+    long dropped,prev_dropped=0,passed,prev_passed=0,d_dropped,d_passed;
+    printf("Packets Dropped\tPackets Passed\t Total Packets\tThroughput\n");
+    __u32 key;
     while (1) {
-        long sum = 0;
-        sleep(interval);
-        assert(bpf_map_lookup_elem(map_fd, &key, &value) == 0);
-        sum=value-prev;
-        if (sum) {
-            total_pkts += sum;
-            printf("total dropped %10lu, %10lu pkt/s\n",
-                   total_pkts, sum / interval);
-        }
-        prev=value;
+    	sleep(interval);
+	key=0;
+        bpf_map_lookup_elem(map_fd, &key, &dropped);
+	key=1;
+	bpf_map_lookup_elem(map_fd, &key, &passed);
+        d_dropped=dropped-prev_dropped;
+	prev_dropped=dropped;
+	d_passed=passed-prev_passed;
+	prev_passed=passed;
+	printf("%ld\t\t%ld\t\t%ld\t\t%ldpckts/s\n",dropped,passed,dropped+passed,(d_dropped+d_passed)/interval);
+	
     }
+}
+static void int_exit(int sig)
+{
+    printf("Exiting program\n");
+    xdp_program__close(prog);
+    exit(0);
 }
 int main(int argc, char *argv[])
 {
@@ -67,9 +73,12 @@ int main(int argc, char *argv[])
     map_fd = bpf_object__find_map_fd_by_name(bpf_obj, "packetmap");
     if (map_fd < 0) {
         printf("Error, get map fd from bpf obj failed\n");
-        return map_fd;
+//        return map_fd;
     }
-    poll_stats(map_fd, 2);
+    printf("map fd:%d\n",map_fd);
+    signal(SIGINT, int_exit);
+    signal(SIGTERM, int_exit);
+    poll_stats(map_fd, 1);
     /* Find the map fd from the bpf object */
   
     return 0;
