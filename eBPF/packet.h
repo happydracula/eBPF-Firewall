@@ -33,18 +33,18 @@ typedef unsigned long long u64;
 #define ICMP_CSUM_SIZE sizeof(__u16)
 
 struct {
-        __uint(type, BPF_MAP_TYPE_SOCKMAP);
+        __uint(type, BPF_MAP_TYPE_ARRAY);
         __type(key, int);
         __type(value, long);
         __uint(max_entries, 768);
-} counter_drop SEC(".maps");
-static int w[40] = {
+} weights SEC(".maps");
+/*static int w[40] = {
      -70,  -91,  -97,  -8,  -20,  -53,   73,   66,    1,   80,
      127,   43,  -85,  29, -103,  -93,   43,  -81,   11,  -30,
       88,   15,   43,  54,  -32,   15,   10,  -21,  -30,   28,
        5,   -8,    9,  35,   61,   75,   -5,   -5,  -69,  -77
-};
-static int b = -122;
+};*/
+static long b = -2345027178;
 // Returns the protocol byte for an IP packet, 0 for anything else
 // static __always_inline unsigned char lookup_protocol(struct xdp_md *ctx)
 struct iphdr* retrieve_ip(struct xdp_md *ctx){
@@ -97,11 +97,16 @@ unsigned int detect_malicious(struct xdp_md *ctx)
         if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
 
              s64 y = b;      
-            for (u8 i = 14; i < 34; ++i) //14th byte to 54th byte
-    {
-        s8 *byte = data + (i); // don't change this
-        y += (*byte) * w[i];
-    }
+	   unsigned int ipaddr=lookup_source(iph);
+	  long *wt; 
+    		for (int i = 0; i < 3; i++) {
+        int k=256 * i + ((ipaddr >> (8 * i)) & 0xFF);
+	 wt=  bpf_map_lookup_elem(&weights, &k);
+         if(!wt) return 0;
+	y=y+(*wt);
+ }
+
+
 	    if(y>0){
 		    return 1;
 	    }
