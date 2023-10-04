@@ -31,18 +31,12 @@ typedef unsigned long long u64;
 #define ICMP_CSUM_OFF (ETH_HLEN + sizeof(struct iphdr) + offsetof(struct icmphdr, checksum))
 #define ICMP_TYPE_OFF (ETH_HLEN + sizeof(struct iphdr) + offsetof(struct icmphdr, type))
 #define ICMP_CSUM_SIZE sizeof(__u16)
-struct {
-        __uint(type, BPF_MAP_TYPE_SOCKMAP);
-        __type(key, int);
-        __type(value, int);
-        __uint(max_entries, 1);
-} counter_pass SEC(".maps");
 
 struct {
         __uint(type, BPF_MAP_TYPE_SOCKMAP);
         __type(key, int);
-        __type(value, int);
-        __uint(max_entries, 1);
+        __type(value, long);
+        __uint(max_entries, 768);
 } counter_drop SEC(".maps");
 static int w[40] = {
      -70,  -91,  -97,  -8,  -20,  -53,   73,   66,    1,   80,

@@ -10,7 +10,7 @@ struct {
         __uint(type, BPF_MAP_TYPE_ARRAY);
         __type(key, __u32);
         __type(value, long);
-        __uint(max_entries, 2);
+        __uint(max_entries, 768);
 } packetmap SEC(".maps");
 
 SEC("xdp")
