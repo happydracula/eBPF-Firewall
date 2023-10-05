@@ -31,13 +31,6 @@ typedef unsigned long long u64;
 #define ICMP_CSUM_OFF (ETH_HLEN + sizeof(struct iphdr) + offsetof(struct icmphdr, checksum))
 #define ICMP_TYPE_OFF (ETH_HLEN + sizeof(struct iphdr) + offsetof(struct icmphdr, type))
 #define ICMP_CSUM_SIZE sizeof(__u16)
-
-struct {
-        __uint(type, BPF_MAP_TYPE_ARRAY);
-        __type(key, int);
-        __type(value, long);
-        __uint(max_entries, 768);
-} weights SEC(".maps");
 static long b = -2345027178;
 struct iphdr* retrieve_ip(struct xdp_md *ctx){
  void *data = (void *)(long)ctx->data;
@@ -70,37 +63,4 @@ unsigned int lookup_source(struct iphdr* iph)
     if(iph!=NULL) return iph->saddr;
     return 0;
 }
-unsigned int detect_malicious(struct xdp_md *ctx)
-{
-    void *data = (void *)(long)ctx->data;
-    void *data_end = (void *)(long)ctx->data_end;
-    struct ethhdr *eth = data;
-    if (data + sizeof(struct ethhdr) > data_end)
-        return 0;
 
-    // Check that it's an IP packet
-    if (bpf_ntohs(eth->h_proto) == ETH_P_IP)
-    {
-        
-        struct iphdr *iph = data + sizeof(struct ethhdr);
-        if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
-
-             s64 y = b;      
-	   unsigned int ipaddr=lookup_source(iph);
-	  long *wt; 
-    		for (int i = 0; i < 3; i++) {
-        int k=256 * i + ((ipaddr >> (8 * i)) & 0xFF);
-	 wt=  bpf_map_lookup_elem(&weights, &k);
-         if(!wt) return 0;
-	y=y+(*wt);
- }
-	    if(y>0){
-		    return 1;
-	    }
-	    else {
-		    return 0;
-	    }
-        }
-    }
-    return 0;
-}
