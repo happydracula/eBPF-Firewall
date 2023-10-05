@@ -38,15 +38,7 @@ struct {
         __type(value, long);
         __uint(max_entries, 768);
 } weights SEC(".maps");
-/*static int w[40] = {
-     -70,  -91,  -97,  -8,  -20,  -53,   73,   66,    1,   80,
-     127,   43,  -85,  29, -103,  -93,   43,  -81,   11,  -30,
-      88,   15,   43,  54,  -32,   15,   10,  -21,  -30,   28,
-       5,   -8,    9,  35,   61,   75,   -5,   -5,  -69,  -77
-};*/
 static long b = -2345027178;
-// Returns the protocol byte for an IP packet, 0 for anything else
-// static __always_inline unsigned char lookup_protocol(struct xdp_md *ctx)
 struct iphdr* retrieve_ip(struct xdp_md *ctx){
  void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;
@@ -89,10 +81,7 @@ unsigned int detect_malicious(struct xdp_md *ctx)
     // Check that it's an IP packet
     if (bpf_ntohs(eth->h_proto) == ETH_P_IP)
     {
-        // Return the protocol of this packet
-        // 1 = ICMP
-        // 6 = TCP
-        // 17 = UDP
+        
         struct iphdr *iph = data + sizeof(struct ethhdr);
         if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
 
@@ -105,8 +94,6 @@ unsigned int detect_malicious(struct xdp_md *ctx)
          if(!wt) return 0;
 	y=y+(*wt);
  }
-
-
 	    if(y>0){
 		    return 1;
 	    }
