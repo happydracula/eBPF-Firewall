@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <net/if.h>
 #include <assert.h>
-
+#include <time.h>
 /* In this example we use libbpf-devel and libxdp-devel */
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -17,18 +17,41 @@ static long w[]={-69479594230,11901599168,2500199079,-2607380449,-24641530513,13
 static long b= -2345027178;
 static long dropped=0,passed=0;
 static int source;
-static void int_exit(int sig){
-    	printf("Packets Dropped\tPackets Passed\t Total Packets\n");
-      printf("%ld\t\t\t\t%ld\t\t\t%ld\n",dropped,passed,dropped+passed);	
-      	xdp_program__close(prog);    
-	exit(0);
+static long begin,end,time_spent;
+static int start=0;
+static unsigned long get_nsecs(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 }
-static void process_packets(int map_fd){    	    
+
+static void int_exit(int sig){
+	time_spent=(end-begin)/1000000000;
+
+        printf("Packets Dropped\tPackets Passed\t Total Packets\tThroughput\n");
+
+      printf("%ld\t\t\t\t%ld\t\t\t%ld\t\t\t%ld pckts/s\n",dropped,passed,dropped+passed,(dropped+passed)/time_spent);
+        xdp_program__close(prog);        exit(0);}
+static void process_packets(int map_fd,int t_map_fd){    	    
 	int source;
+	long tstamp,ptstamp=-1;
+
       	__u32 key;    
 	while (1){
 		key=0;       
-	       	bpf_map_lookup_elem(map_fd, &key, &source);
+	       	if(bpf_map_lookup_elem(map_fd, &key, &source)<0) continue;
+		if(!source) continue;
+		if(bpf_map_lookup_elem(t_map_fd, &key, &tstamp)<0)continue;
+		if(!tstamp) continue;
+		if(tstamp==ptstamp) continue;
+		ptstamp=tstamp;	
+		if(start==0){
+			start=1;
+			begin=tstamp;
+		}
+		end=tstamp;	
 		if(source==0x0101a8c0){
                     key=0;
 		    dropped+=1;
@@ -42,8 +65,10 @@ static void process_packets(int map_fd){
 	    if(y>0) dropped++;
 	    else passed++;      
 		}
+//	end=get_nsecs();
 	  	        
-    	}}
+    	}
+}
 int main(int argc, char *argv[])
 {
     int prog_fd,ret;
@@ -77,9 +102,10 @@ int main(int argc, char *argv[])
     }
        bpf_obj = xdp_program__bpf_obj(prog);
        int ipaddr_map_fd = bpf_object__find_map_fd_by_name(bpf_obj, "ip_addr_map");
+       int time_map_fd = bpf_object__find_map_fd_by_name(bpf_obj, "time_map");
           signal(SIGINT, int_exit);
          signal(SIGTERM, int_exit);
 
-       process_packets(ipaddr_map_fd);
+       process_packets(ipaddr_map_fd,time_map_fd);
      return 0;
 }
