@@ -6,30 +6,38 @@
 #include <signal.h>
 #include <net/if.h>
 #include <assert.h>
-
+#include <time.h>
 /* In this example we use libbpf-devel and libxdp-devel */
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <xdp/libxdp.h>
 static int ifindex;
 struct xdp_program *prog = NULL;
-static int stat_map_fd;
+static int stat_map_fd,time_map_fd;
+static long time_spent;
+static long begin,end;
 static void poll_stats()
 {
     long dropped,passed;
     int key;
-    printf("Packets Dropped\tPackets Passed\t Total Packets Processed\n");
+    printf("Packets Dropped\tPackets Passed\t Total Packets Processed\t Throughput\n");
     
 	key=0;
         bpf_map_lookup_elem(stat_map_fd, &key, &dropped);
+	key=2;
+	bpf_map_lookup_elem(stat_map_fd, &key, &begin);
 	key=1;
 	bpf_map_lookup_elem(stat_map_fd, &key, &passed);
-	printf("%ld\t\t\t\t%ld\t\t\t%ld\n",dropped,passed,dropped+passed);
+	key=3;
+	bpf_map_lookup_elem(stat_map_fd, &key, &end);
+	time_spent += (end - begin) / 1000000000;
+	printf("%ld\t\t\t\t%ld\t\t\t%ld\t\t\t%ld pkt/s\n",dropped,passed,dropped+passed,(dropped+passed)/time_spent);
 	
     
 }
 static void int_exit(int sig)
 {
+    end=clock();
     poll_stats();
     xdp_program__close(prog);
     exit(0);
