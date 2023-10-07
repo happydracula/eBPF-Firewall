@@ -50,17 +50,22 @@ struct iphdr* retrieve_ip(struct xdp_md *ctx){
     }
     return NULL;
 }
-unsigned char lookup_protocol(struct iphdr *iph)
+unsigned int lookup_source(struct xdp_md *ctx)
 {
-	if(iph!=NULL){
-		return 0;
-	}
-	else return iph->protocol;
-}
+	 void *data = (void *)(long)ctx->data;
+    void *data_end = (void *)(long)ctx->data_end;
+    struct ethhdr *eth = data;
+    if (data + sizeof(struct ethhdr) > data_end)
+        return -1;
+    if (bpf_ntohs(eth->h_proto) == ETH_P_IP)
+    {
 
-unsigned int lookup_source(struct iphdr* iph)
-{
-    if(iph!=NULL) return iph->saddr;
-    return 0;
-}
+        struct iphdr *iph = data + sizeof(struct ethhdr);
+        if (data + sizeof(struct ethhdr) + sizeof(struct iphdr) <= data_end){
 
+    //        bpf_printk("\nSource Addr Parsed:%pI4 \n",&iph->saddr);
+            return iph->saddr;
+        }
+    }
+    return -1;
+}

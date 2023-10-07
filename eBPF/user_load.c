@@ -16,7 +16,7 @@ struct xdp_program *prog = NULL;
 static int stat_map_fd,time_map_fd;
 static long time_spent;
 static long begin,end;
-static void poll_stats()
+static void poll_stats() 
 {
     long dropped,passed;
     int key;
@@ -32,8 +32,6 @@ static void poll_stats()
 	bpf_map_lookup_elem(stat_map_fd, &key, &end);
 	time_spent += (end - begin) / 1000000000;
 	printf("%ld\t\t\t\t%ld\t\t\t%ld\t\t\t%ld pkt/s\n",dropped,passed,dropped+passed,(dropped+passed)/time_spent);
-	
-    
 }
 static void int_exit(int sig)
 {
